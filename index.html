@@ -43,9 +43,16 @@
             display: flex;
             justify-content: center;
             align-items: center;
+        }
+
+        .cell input {
+            width: 100%;
+            height: 100%;
+            border: none;
+            text-align: center;
             font-size: 20px;
-            cursor: pointer;
-            transition: background-color 0.3s;
+            background: transparent;
+            outline: none;
         }
 
         .cell:nth-child(3n) {
@@ -101,27 +108,6 @@
             font-size: 18px;
             margin-bottom: 10px;
         }
-
-        #number-pad {
-            display: none;
-            justify-content: center;
-            margin-top: 10px;
-        }
-
-        .number-button {
-            padding: 10px;
-            font-size: 18px;
-            background-color: #3498db;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            margin: 5px;
-            cursor: pointer;
-        }
-
-        .number-button:hover {
-            background-color: #2980b9;
-        }
     </style>
 </head>
 <body>
@@ -140,18 +126,6 @@
         <button id="check">Check</button>
         <button id="solve">Solve</button>
     </div>
-    <div id="number-pad">
-        <button class="number-button">1</button>
-        <button class="number-button">2</button>
-        <button class="number-button">3</button>
-        <button class="number-button">4</button>
-        <button class="number-button">5</button>
-        <button class="number-button">6</button>
-        <button class="number-button">7</button>
-        <button class="number-button">8</button>
-        <button class="number-button">9</button>
-        <button class="number-button">Clear</button>
-    </div>
 </div>
 
 <script>
@@ -162,7 +136,6 @@
     const difficultySelect = document.getElementById('difficulty');
     const timerDisplay = document.getElementById('timer');
     const scoreDisplay = document.getElementById('score');
-    let selectedCell = null;
     let initialBoard = [];
     let timer;
     let seconds = 0;
@@ -188,40 +161,24 @@
         for (let i = 0; i < 81; i++) {
             const cell = document.createElement('div');
             cell.classList.add('cell');
-            cell.addEventListener('click', () => selectCell(cell));
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.maxLength = 1; // 限制输入长度为1
+            input.addEventListener('input', (e) => handleInput(e, cell));
+            cell.appendChild(input);
             board.appendChild(cell);
         }
     }
 
-    function selectCell(cell) {
-        if (selectedCell) {
-            selectedCell.classList.remove('selected');
+    function handleInput(event, cell) {
+        const value = event.target.value;
+        if (value === '' || /^[1-9]$/.test(value)) {
+            cell.classList.remove('error');
+        } else {
+            cell.classList.add('error');
+            event.target.value = ''; // 无效输入则清空
         }
-        selectedCell = cell;
-        cell.classList.add('selected');
-
-        // 显示数字键盘
-        const numberPad = document.getElementById('number-pad');
-        numberPad.style.display = 'flex';
     }
-
-    document.querySelectorAll('.number-button').forEach(button => {
-        button.addEventListener('click', () => {
-            const value = button.textContent;
-            if (selectedCell && !selectedCell.classList.contains('initial')) {
-                if (value === 'Clear') {
-                    selectedCell.textContent = '';
-                } else {
-                    selectedCell.textContent = value;
-                }
-                selectedCell.classList.remove('error');
-                calculateScore();
-            }
-
-            // 隐藏数字键盘
-            document.getElementById('number-pad').style.display = 'none';
-        });
-    });
 
     function generatePuzzle() {
         const difficulty = difficultySelect.value;
@@ -232,12 +189,15 @@
         initialBoard = [...puzzle];
         const cells = board.getElementsByClassName('cell');
         for (let i = 0; i < puzzle.length; i++) {
+            const input = cells[i].querySelector('input');
             if (puzzle[i] !== 0) {
-                cells[i].textContent = puzzle[i];
-                cells[i].classList.add('initial');
+                input.value = puzzle[i];
+                input.classList.add('initial');
+                input.readOnly = true; // 设置为只读
             } else {
-                cells[i].textContent = '';
-                cells[i].classList.remove('initial');
+                input.value = '';
+                input.classList.remove('initial');
+                input.readOnly = false; // 允许输入
             }
             cells[i].classList.remove('error');
         }
@@ -248,7 +208,8 @@
         let correct = true;
 
         for (let i = 0; i < 81; i++) {
-            const value = cells[i].textContent;
+            const input = cells[i].querySelector('input');
+            const value = input.value;
             if (value === '' || isInvalid(i, parseInt(value))) {
                 cells[i].classList.add('error');
                 correct = false;
@@ -276,14 +237,14 @@
 
         // Check row
         for (let i = 0; i < 9; i++) {
-            if (i !== col && board.children[row * 9 + i].textContent == value) {
+            if (i !== col && board.children[row * 9 + i].querySelector('input').value == value) {
                 return true;
             }
         }
 
         // Check column
         for (let i = 0; i < 9; i++) {
-            if (i !== row && board.children[i * 9 + col].textContent == value) {
+            if (i !== row && board.children[i * 9 + col].querySelector('input').value == value) {
                 return true;
             }
         }
@@ -292,7 +253,7 @@
         for (let i = 0; i < 3; i++) {
             for (let j = 0; j < 3; j++) {
                 const cellIndex = (boxRow + i) * 9 + (boxCol + j);
-                if (cellIndex !== index && board.children[cellIndex].textContent == value) {
+                if (cellIndex !== index && board.children[cellIndex].querySelector('input').value == value) {
                     return true;
                 }
             }
@@ -304,7 +265,7 @@
     function isBoardFull() {
         const cells = board.getElementsByClassName('cell');
         for (let i = 0; i < 81; i++) {
-            if (cells[i].textContent === '') {
+            if (cells[i].querySelector('input').value === '') {
                 return false;
             }
         }
@@ -315,12 +276,12 @@
         const cells = board.getElementsByClassName('cell');
         const puzzle = [];
         for (let i = 0; i < 81; i++) {
-            puzzle.push(cells[i].textContent === '' ? 0 : parseInt(cells[i].textContent));
+            puzzle.push(cells[i].querySelector('input').value === '' ? 0 : parseInt(cells[i].querySelector('input').value));
         }
 
         if (solve(puzzle)) {
             for (let i = 0; i < 81; i++) {
-                cells[i].textContent = puzzle[i];
+                cells[i].querySelector('input').value = puzzle[i];
                 cells[i].classList.remove('error');
             }
             alert('Puzzle solved!');
